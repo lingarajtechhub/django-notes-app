@@ -1,0 +1,96 @@
+pipeline {
+    agent any 
+    
+    stages{
+        stage("Clone Code"){
+            steps {
+                echo "Cloning the code"
+                git url:"https://github.com/LondheShubham153/django-notes-app.git", branch: "main"
+            }
+        }
+        stage("Build"){
+            steps {
+                echo "Building the image"
+                sh "docker build -t my-note-app ."
+            }
+        }
+        stage("Push to Docker Hub"){
+            steps {
+                withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
+                sh "docker tag my-note-app ${env.dockerHubUser}/my-note-app:latest"
+                sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                sh "docker push ${env.dockerHubUser}/my-note-app:latest"
+                }
+            }
+        }
+        stage("Deploy"){
+            steps {
+                echo "Deploying the container"
+                sh "docker-compose down && docker-compose up -d"
+            }
+        }
+    }
+}
+
+
+While at Beginning Docker-Compose will Like This...
+====================================================
+version : "3.3"
+services :
+  web :
+     build : .
+     ports :
+         - "8000:8000"
+
+After push the image to docker hub then you have to apply this docker-compose file
+==================================================================================
+version : "3.3"
+services :
+  web :
+     image : lingaraj123/notes-app:latest
+     ports :
+         - "8000:8000"
+
+These are permissions to add 
+============================
+sudo usermod -aG docker $USER
+sudo reboot
+sudo usermod -aG docker jenkins
+sudo reboot
+
+Jenkins Pipeline Without Docker-Compose
+=======================================
+pipeline {
+  agent any
+  
+  stages{
+   stage("Code"){
+     steps {
+        echo "Clone the Code"
+        git url: "https://github.com/lingarajtechhub/django-notes-app.git", branch: "main"
+     }
+   }
+   stage("Build"){
+     steps {
+        echo "Build"
+        sh "docker build . -t notes-app"
+     }
+   }
+   stage("Push To Docker Hub"){
+     steps {
+        echo "Pushing the image to docker hub"
+        withCredentials([usernamePassword(credentialsId:"dockerHub",passwordVariable:"dockerHubPass",usernameVariable:"dockerHubUser")]){
+                sh "docker tag notes-app ${env.dockerHubUser}/notes-app:latest"
+                sh "docker login -u ${env.dockerHubUser} -p ${env.dockerHubPass}"
+                sh "docker push ${env.dockerHubUser}/notes-app:latest"
+        }
+     }
+   }
+   stage("Deploy"){
+     steps {
+        echo "Deploy"
+        sh "docker run -d -p 8000:8000 notes-app:latest"
+     }
+   }
+  }
+}
